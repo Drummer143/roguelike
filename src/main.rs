@@ -1,3 +1,7 @@
+mod map;
+
+use map::{Map, Tile};
+
 use tcod::{
     colors,
     console::{blit, Offscreen, Root},
@@ -10,13 +14,6 @@ const HEIGHT: i32 = 100;
 
 const MAP_WIDTH: i32 = 100;
 const MAP_HEIGHT: i32 = 100;
-
-const COLOR_DARK_WALL: Color = Color { r: 0, g: 0, b: 100 };
-const COLOR_DARK_GROUND: Color = Color {
-    r: 50,
-    g: 50,
-    b: 150,
-};
 
 const FPS: i32 = 60;
 
@@ -52,15 +49,16 @@ impl Unit {
         let next_x = self.position.x + x;
         let next_y = self.position.y + y;
 
-        let is_map_end = next_x < 0 || next_x > MAP_WIDTH - 1 || next_y < 0 || next_y > MAP_HEIGHT - 1;
+        let is_map_end =
+            next_x < 0 || next_x > MAP_WIDTH - 1 || next_y < 0 || next_y > MAP_HEIGHT - 1;
 
         if is_map_end {
             return;
         }
 
-        let is_wall = game.map[next_x as usize][next_y as usize].blocked;
+        let tile = game.map.get_tile(next_x, next_y);
 
-        if !is_wall {
+        if tile.is_ok() && !tile.unwrap().is_blocked() {
             self.position.x += x;
             self.position.y += y;
         }
@@ -78,39 +76,8 @@ impl Unit {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Tile {
-    blocked: bool,
-    block_sight: bool,
-}
-
-impl Tile {
-    pub fn empty() -> Self {
-        Tile {
-            blocked: false,
-            block_sight: false,
-        }
-    }
-
-    pub fn wall() -> Self {
-        Tile {
-            blocked: true,
-            block_sight: true,
-        }
-    }
-}
-
-type Map = Vec<Vec<Tile>>;
-
-struct Game {
-    map: Map,
-}
-
-fn make_map() -> Map {
-    // fill map with "unblocked" tiles
-    let mut map = vec![vec![Tile::empty(); MAP_HEIGHT as usize]; MAP_WIDTH as usize];
-
-    map
+pub struct Game {
+    pub map: Map,
 }
 
 fn handle_keys(app: &mut App, player: &mut Unit, game: &Game) -> bool {
@@ -163,23 +130,10 @@ fn handle_keys(app: &mut App, player: &mut Unit, game: &Game) -> bool {
     false
 }
 
-fn render_all(app: &mut App, game: &Game, units: &Vec<&mut Unit>) {
+fn render_all(app: &mut App, units: &Vec<&mut Unit>) {
     // draw all objects in the list
-    for unit in units {
+    for unit in units.into_iter().rev() {
         unit.draw(&mut app.offscreen);
-    }
-
-    for y in 0..MAP_HEIGHT {
-        for x in 0..MAP_WIDTH {
-            let wall = game.map[x as usize][y as usize].block_sight;
-            if wall {
-                app.offscreen
-                    .set_char_background(x, y, COLOR_DARK_WALL, BackgroundFlag::Set);
-            } else {
-                app.offscreen
-                    .set_char_background(x, y, COLOR_DARK_GROUND, BackgroundFlag::Set);
-            }
-        }
     }
 }
 
@@ -207,18 +161,20 @@ fn main() {
 
     units.push(&mut npc);
 
-    let map = make_map();
+    let map = Map::new(MAP_WIDTH, MAP_HEIGHT);
 
     let mut game = Game { map };
 
-    game.map[30][22] = Tile::wall();
-    game.map[50][22] = Tile::wall();
+    game.map.set_tile(30, 22, Tile::wall());
+    game.map.set_tile(50, 22, Tile::wall());
 
     loop {
         app.offscreen.set_default_background(colors::BLUE);
         app.offscreen.clear();
 
-        render_all(&mut app, &game, &units);
+        render_all(&mut app, &units);
+
+        game.map.render(&mut app.offscreen);
 
         blit(
             &app.offscreen,
