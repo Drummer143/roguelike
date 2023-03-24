@@ -1,12 +1,14 @@
 mod map;
+mod unit;
 
 use map::{Map, Tile};
+use unit::Unit;
 
 use tcod::{
     colors,
     console::{blit, Offscreen, Root},
     input::{Key, KeyCode},
-    BackgroundFlag, Color, Console, FontLayout, FontType,
+    Console, FontLayout, FontType,
 };
 
 const WIDTH: i32 = 100;
@@ -17,70 +19,17 @@ const MAP_HEIGHT: i32 = 100;
 
 const FPS: i32 = 60;
 
-struct App {
-    root: Root,
-    offscreen: Offscreen,
-}
-
-#[derive(Clone, Copy)]
-struct Coordinates {
-    x: i32,
-    y: i32,
-}
-
-#[derive(Clone, Copy)]
-struct Unit {
-    position: Coordinates,
-    char: char,
-    color: Color,
-}
-
-impl Unit {
-    pub fn new(x: i32, y: i32, char: char, color: Color) -> Self {
-        Unit {
-            position: Coordinates { x, y },
-            char,
-            color,
-        }
-    }
-
-    /// move by the given amount
-    pub fn r#move(&mut self, x: i32, y: i32, game: &Game) {
-        let next_x = self.position.x + x;
-        let next_y = self.position.y + y;
-
-        let is_map_end =
-            next_x < 0 || next_x > MAP_WIDTH - 1 || next_y < 0 || next_y > MAP_HEIGHT - 1;
-
-        if is_map_end {
-            return;
-        }
-
-        let tile = game.map.get_tile(next_x, next_y);
-
-        if tile.is_ok() && !tile.unwrap().is_blocked() {
-            self.position.x += x;
-            self.position.y += y;
-        }
-    }
-
-    /// set the color and then draw the character that represents this object at its position
-    pub fn draw(&self, con: &mut dyn Console) {
-        con.set_default_foreground(self.color);
-        con.put_char(
-            self.position.x,
-            self.position.y,
-            self.char,
-            BackgroundFlag::None,
-        );
-    }
-}
-
 pub struct Game {
     pub map: Map,
 }
 
-fn handle_keys(app: &mut App, player: &mut Unit, game: &Game) -> bool {
+struct App {
+    root: Root,
+    offscreen: Offscreen,
+    game: Game
+}
+
+fn handle_keys(app: &mut App, player: &mut Unit) -> bool {
     let key = app.root.wait_for_keypress(true);
 
     match key {
@@ -88,25 +37,25 @@ fn handle_keys(app: &mut App, player: &mut Unit, game: &Game) -> bool {
             code: KeyCode::Char,
             printable: 'w',
             ..
-        } => player.r#move(0, -1, game),
+        } => player.r#move(0, -1, &app.game.map),
 
         Key {
             code: KeyCode::Char,
             printable: 's',
             ..
-        } => player.r#move(0, 1, game),
+        } => player.r#move(0, 1, &app.game.map),
 
         Key {
             code: KeyCode::Char,
             printable: 'a',
             ..
-        } => player.r#move(-1, 0, game),
+        } => player.r#move(-1, 0, &app.game.map),
 
         Key {
             code: KeyCode::Char,
             printable: 'd',
             ..
-        } => player.r#move(1, 0, game),
+        } => player.r#move(1, 0, &app.game.map),
 
         Key {
             code: KeyCode::Enter,
@@ -149,8 +98,6 @@ fn main() {
 
     let offscreen = Offscreen::new(MAP_WIDTH, MAP_HEIGHT);
 
-    let mut app = App { root, offscreen };
-
     let mut player = Unit::new(WIDTH / 2, HEIGHT / 2, '@', colors::WHITE);
 
     let mut units: Vec<&mut Unit> = Vec::new();
@@ -161,12 +108,10 @@ fn main() {
 
     units.push(&mut npc);
 
-    let map = Map::new(MAP_WIDTH, MAP_HEIGHT);
+    let mut app = App { root, offscreen, game: Game { map: Map::new(MAP_WIDTH, MAP_HEIGHT) } };
 
-    let mut game = Game { map };
-
-    game.map.set_tile(30, 22, Tile::wall());
-    game.map.set_tile(50, 22, Tile::wall());
+    app.game.map.set_tile(30, 22, Tile::wall());
+    app.game.map.set_tile(50, 22, Tile::wall());
 
     loop {
         app.offscreen.set_default_background(colors::BLUE);
@@ -174,7 +119,7 @@ fn main() {
 
         render_all(&mut app, &units);
 
-        game.map.render(&mut app.offscreen);
+        app.game.map.render(&mut app.offscreen);
 
         blit(
             &app.offscreen,
@@ -188,7 +133,7 @@ fn main() {
 
         app.root.flush();
 
-        let exit = handle_keys(&mut app, units[0], &game);
+        let exit = handle_keys(&mut app, units[0]);
 
         if app.root.window_closed() || exit {
             break;

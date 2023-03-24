@@ -85,4 +85,12 @@ impl Map {
             }
         }
     }
+
+    pub fn get_width(&self) -> i32 {
+        self.width
+    }
+
+    pub fn get_height(&self) -> i32 {
+        self.height
+    }
 }
