@@ -46,7 +46,7 @@ pub struct Map {
 
 impl Map {
     pub fn new(width: i32, height: i32) -> Self {
-        let tiles = vec![vec![Tile::empty(); width as usize]; height as usize];
+        let tiles = vec![vec![Tile::wall(); width as usize]; height as usize];
 
         Map {
             tiles,

@@ -1,10 +1,10 @@
 use crate::map::Map;
 use tcod::{BackgroundFlag, Color, Console};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Coordinates {
-    x: i32,
-    y: i32,
+    pub x: i32,
+    pub y: i32,
 }
 
 #[derive(Clone, Copy)]
