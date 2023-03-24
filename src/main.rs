@@ -1,7 +1,7 @@
 mod map;
 mod unit;
 
-use std::cmp::min;
+use std::{cmp::min, process::Command};
 
 use rand::Rng;
 use tcod::{
@@ -81,6 +81,17 @@ impl Room {
     }
 }
 
+fn restart() {
+    let path_to_app = std::env::current_exe();
+
+    if let Ok(path_to_app) = path_to_app {
+        Command::new(path_to_app).spawn().expect("failed to restart process");
+        std::process::exit(0);
+    } else {
+        panic!("failed to restart process");
+    }
+}
+
 fn handle_keys(app: &mut App, player: &mut Unit) -> bool {
     let key = app.root.wait_for_keypress(true);
 
@@ -125,7 +136,17 @@ fn handle_keys(app: &mut App, player: &mut Unit) -> bool {
             return true;
         }
 
-        _ => println!("{:?}", key),
+        Key {
+            code: KeyCode::Char,
+            printable: 'r',
+            ..
+        } => {
+            restart();
+            // main();
+            // std::process::exit(1);
+        }
+
+        _ => {}
     }
 
     false
@@ -283,13 +304,11 @@ fn main() {
         .title("Roguelike game")
         .init();
 
-    let offscreen = Offscreen::new(WIDTH, HEIGHT);
-
     let mut units: Vec<&mut Unit> = Vec::new();
 
     let mut app = App {
         root,
-        offscreen,
+        offscreen: Offscreen::new(WIDTH, HEIGHT),
         game: Game {
             map: Map::new(WIDTH, HEIGHT),
         },
@@ -303,13 +322,17 @@ fn main() {
 
     units.push(&mut player);
 
+    app.game.map.set_fov();
+
     loop {
         app.offscreen.set_default_background(colors::BLUE);
         app.offscreen.clear();
 
         render_all(&mut app, &units);
 
-        app.game.map.render(&mut app.offscreen);
+        app.game
+            .map
+            .render(&mut app.offscreen, &units[0].get_position());
 
         blit(
             &app.offscreen,

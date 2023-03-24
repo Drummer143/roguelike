@@ -1,10 +1,30 @@
-use tcod::{console::Offscreen, BackgroundFlag, Color, Console};
+use tcod::{
+    console::Offscreen,
+    map::{FovAlgorithm, Map as FovMap},
+    BackgroundFlag, Color, Console,
+};
 
-pub const COLOR_DARK_WALL: Color = Color { r: 0, g: 0, b: 100 };
-pub const COLOR_DARK_GROUND: Color = Color {
+use crate::unit::Coordinates;
+
+const FOV_ALGO: FovAlgorithm = FovAlgorithm::Basic; // default FOV algorithm
+const FOV_LIGHT_WALLS: bool = true; // light walls or not
+const TORCH_RADIUS: i32 = 10;
+
+const COLOR_DARK_WALL: Color = Color { r: 0, g: 0, b: 100 };
+const COLOR_LIGHT_WALL: Color = Color {
+    r: 130,
+    g: 110,
+    b: 50,
+};
+const COLOR_DARK_GROUND: Color = Color {
     r: 50,
     g: 50,
     b: 150,
+};
+const COLOR_LIGHT_GROUND: Color = Color {
+    r: 200,
+    g: 180,
+    b: 50,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -37,11 +57,12 @@ impl Tile {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Map {
     tiles: Vec<Vec<Tile>>,
     width: i32,
     height: i32,
+    fov: FovMap,
 }
 
 impl Map {
@@ -52,6 +73,7 @@ impl Map {
             tiles,
             width,
             height,
+            fov: FovMap::new(width, height),
         }
     }
 
@@ -73,15 +95,41 @@ impl Map {
         }
     }
 
-    pub fn render(&self, offscreen: &mut Offscreen) {
+    pub fn set_fov(&mut self) {
+        for y in 0..self.height {
+            for x in 0..self.height {
+                let tile = self.tiles[x as usize][y as usize];
+
+                self.fov
+                    .set(x, y, !tile.is_block_sight(), !tile.is_blocked());
+            }
+        }
+    }
+
+    pub fn render(&mut self, offscreen: &mut Offscreen, player_position: &Coordinates) {
+        self.fov.compute_fov(
+            player_position.x,
+            player_position.y,
+            TORCH_RADIUS,
+            FOV_LIGHT_WALLS,
+            FOV_ALGO,
+        );
+
         for y in 0..self.height {
             for x in 0..self.width {
-                let wall = self.tiles[x as usize][y as usize].block_sight;
-                if wall {
-                    offscreen.set_char_background(x, y, COLOR_DARK_WALL, BackgroundFlag::Set);
-                } else {
-                    offscreen.set_char_background(x, y, COLOR_DARK_GROUND, BackgroundFlag::Set);
-                }
+                let visible = self.fov.is_in_fov(x, y);
+                let wall = self.tiles[x as usize][y as usize].is_block_sight();
+
+                let color = match (visible, wall) {
+                    // outside of field of view:
+                    (false, true) => COLOR_DARK_WALL,
+                    (false, false) => COLOR_DARK_GROUND,
+                    // inside fov:
+                    (true, true) => COLOR_LIGHT_WALL,
+                    (true, false) => COLOR_LIGHT_GROUND,
+                };
+
+                offscreen.set_char_background(x, y, color, BackgroundFlag::Set);
             }
         }
     }

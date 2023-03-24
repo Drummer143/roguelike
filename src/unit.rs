@@ -55,4 +55,8 @@ impl Unit {
             BackgroundFlag::None,
         );
     }
+
+    pub fn get_position(&self) -> &Coordinates {
+        &self.position
+    }
 }
