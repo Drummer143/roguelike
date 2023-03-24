@@ -133,7 +133,7 @@ fn handle_keys(app: &mut App, player: &mut Unit) -> bool {
             code: KeyCode::Escape,
             ..
         } => {
-            return true;
+            std::process::exit(0);
         }
 
         Key {
@@ -261,8 +261,8 @@ fn generate_rooms(map: &mut Map) -> Vec<Room> {
     while index < MAX_ROOMS {
         let w = rand::thread_rng().gen_range(ROOM_MIN_SIZE..ROOM_MAX_SIZE + 1);
         let h = rand::thread_rng().gen_range(ROOM_MIN_SIZE..ROOM_MAX_SIZE + 1);
-        let x = rand::thread_rng().gen_range(0..WIDTH - w);
-        let y = rand::thread_rng().gen_range(0..WIDTH - h);
+        let x = rand::thread_rng().gen_range(1..map.get_height() - w - 1);
+        let y = rand::thread_rng().gen_range(1..map.get_width() - h - 1);
 
         let new_room = Room::new(x, x + w, y, y + h);
 
@@ -325,7 +325,7 @@ fn main() {
     app.game.map.set_fov();
 
     loop {
-        app.offscreen.set_default_background(colors::BLUE);
+        app.offscreen.set_default_background(colors::BLACK);
         app.offscreen.clear();
 
         render_all(&mut app, &units);

@@ -30,6 +30,7 @@ const COLOR_LIGHT_GROUND: Color = Color {
 #[derive(Debug, Clone, Copy)]
 pub struct Tile {
     blocked: bool,
+    explored: bool,
     block_sight: bool,
 }
 
@@ -37,6 +38,7 @@ impl Tile {
     pub fn empty() -> Self {
         Tile {
             blocked: false,
+            explored: false,
             block_sight: false,
         }
     }
@@ -44,8 +46,13 @@ impl Tile {
     pub fn wall() -> Self {
         Tile {
             blocked: true,
+            explored: false,
             block_sight: true,
         }
+    }
+
+    pub fn set_explored(&mut self, value: bool) {
+        self.explored = value;
     }
 
     pub fn is_blocked(self) -> bool {
@@ -55,6 +62,10 @@ impl Tile {
     pub fn is_block_sight(self) -> bool {
         self.block_sight
     }
+
+    pub fn is_explored(self) -> bool {
+        self.explored
+    }
 }
 
 #[derive(Clone)]
@@ -63,6 +74,7 @@ pub struct Map {
     width: i32,
     height: i32,
     fov: FovMap,
+    prev_player_pos: Coordinates,
 }
 
 impl Map {
@@ -74,6 +86,7 @@ impl Map {
             width,
             height,
             fov: FovMap::new(width, height),
+            prev_player_pos: Coordinates { x: 0, y: 0 },
         }
     }
 
@@ -107,29 +120,40 @@ impl Map {
     }
 
     pub fn render(&mut self, offscreen: &mut Offscreen, player_position: &Coordinates) {
-        self.fov.compute_fov(
-            player_position.x,
-            player_position.y,
-            TORCH_RADIUS,
-            FOV_LIGHT_WALLS,
-            FOV_ALGO,
-        );
+        if !player_position.is_equal(&self.prev_player_pos) {
+            self.prev_player_pos.x = player_position.x;
+            self.prev_player_pos.y = player_position.y;
+
+            self.fov.compute_fov(
+                player_position.x,
+                player_position.y,
+                TORCH_RADIUS,
+                FOV_LIGHT_WALLS,
+                FOV_ALGO,
+            );
+        }
 
         for y in 0..self.height {
             for x in 0..self.width {
                 let visible = self.fov.is_in_fov(x, y);
-                let wall = self.tiles[x as usize][y as usize].is_block_sight();
+                let tile = &mut self.tiles[x as usize][y as usize];
 
-                let color = match (visible, wall) {
-                    // outside of field of view:
-                    (false, true) => COLOR_DARK_WALL,
-                    (false, false) => COLOR_DARK_GROUND,
-                    // inside fov:
-                    (true, true) => COLOR_LIGHT_WALL,
-                    (true, false) => COLOR_LIGHT_GROUND,
-                };
+                if visible {
+                    tile.set_explored(true);
+                }
 
-                offscreen.set_char_background(x, y, color, BackgroundFlag::Set);
+                if tile.is_explored() {
+                    let color = match (visible, tile.blocked) {
+                        // outside of field of view:
+                        (false, true) => COLOR_DARK_WALL,
+                        (false, false) => COLOR_DARK_GROUND,
+                        // inside fov:
+                        (true, true) => COLOR_LIGHT_WALL,
+                        (true, false) => COLOR_LIGHT_GROUND,
+                    };
+
+                    offscreen.set_char_background(x, y, color, BackgroundFlag::Set);
+                }
             }
         }
     }

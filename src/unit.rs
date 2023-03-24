@@ -7,6 +7,12 @@ pub struct Coordinates {
     pub y: i32,
 }
 
+impl Coordinates {
+    pub fn is_equal(&self, point: &Coordinates) -> bool {
+        self.x == point.x && self.y == point.y
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct Unit {
     position: Coordinates,
