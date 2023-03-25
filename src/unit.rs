@@ -1,5 +1,5 @@
 use crate::map::Map;
-use tcod::{BackgroundFlag, Color, Console};
+use tcod::{colors, BackgroundFlag, Color, Console};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Coordinates {
@@ -13,19 +13,25 @@ impl Coordinates {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug)]
 pub struct Unit {
     position: Coordinates,
     char: char,
     color: Color,
+    name: String,
+    blocks_point: bool,
+    alive: bool
 }
 
 impl Unit {
-    pub fn new(x: i32, y: i32, char: char, color: Color) -> Self {
+    pub fn new(x: i32, y: i32, char: char, color: Color, name: &str, blocks_point: bool, alive: bool) -> Self {
         Unit {
             position: Coordinates { x, y },
             char,
             color,
+            alive,
+            blocks_point,
+            name: String::from(name)
         }
     }
 
@@ -64,5 +70,29 @@ impl Unit {
 
     pub fn get_position(&self) -> &Coordinates {
         &self.position
+    }
+}
+
+impl Unit {
+    pub fn orc(x: i32, y: i32) -> Self {
+        Self {
+            position: Coordinates { x, y },
+            char: 'o',
+            color: colors::DESATURATED_GREEN,
+            alive: true,
+            blocks_point: true,
+            name: "Orc".into()
+        }
+    }
+
+    pub fn troll(x: i32, y: i32) -> Self {
+        Self {
+            position: Coordinates { x, y },
+            char: 'T',
+            color: colors::DARK_GREEN,
+            alive: true,
+            blocks_point: true,
+            name: "Troll".into()
+        }
     }
 }

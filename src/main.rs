@@ -23,6 +23,10 @@ const ROOM_MAX_SIZE: i32 = 10;
 const ROOM_MIN_SIZE: i32 = 6;
 const MAX_ROOMS: i32 = 30;
 
+const MAX_ROOM_MONSTERS: i32 = 3;
+
+const PLAYER: usize = 0;
+
 pub struct Game {
     pub map: Map,
 }
@@ -33,12 +37,13 @@ struct App {
     game: Game,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Room {
     pub left_x: i32,
     pub top_y: i32,
     pub right_x: i32,
     pub bottom_y: i32,
+    pub monsters: Vec<Unit>,
 }
 
 impl Room {
@@ -48,6 +53,7 @@ impl Room {
             right_x,
             top_y,
             bottom_y,
+            monsters: vec![],
         }
     }
 
@@ -85,7 +91,9 @@ fn restart() {
     let path_to_app = std::env::current_exe();
 
     if let Ok(path_to_app) = path_to_app {
-        Command::new(path_to_app).spawn().expect("failed to restart process");
+        Command::new(path_to_app)
+            .spawn()
+            .expect("failed to restart process");
         std::process::exit(0);
     } else {
         panic!("failed to restart process");
@@ -152,7 +160,7 @@ fn handle_keys(app: &mut App, player: &mut Unit) -> bool {
     false
 }
 
-fn render_all(app: &mut App, units: &Vec<&mut Unit>) {
+fn render_all(app: &mut App, units: &Vec<Unit>) {
     // draw all objects in the list
     for unit in units.into_iter().rev() {
         unit.draw(&mut app.offscreen);
@@ -254,9 +262,46 @@ fn find_nearest_room<'a>(rooms: &'a Vec<Room>, target_room: &'a Room) -> &'a Roo
 //     }
 // }
 
-fn generate_rooms(map: &mut Map) -> Vec<Room> {
+fn spawn_monsters(room: &mut Room) -> Vec<Unit> {
+    let mut monsters: Vec<Unit> = vec![];
+
+    let count_of_monsters_in_room = rand::thread_rng().gen_range(0..MAX_ROOM_MONSTERS + 1);
+    let mut index = 0;
+
+    while index < count_of_monsters_in_room {
+        let x = rand::thread_rng().gen_range(room.left_x..room.right_x);
+        let y = rand::thread_rng().gen_range(room.bottom_y..room.top_y);
+
+        let mut is_place_taken = false;
+
+        for monster in room.monsters.iter() {
+            if monster.get_position().is_equal(&Coordinates { x, y }) {
+                is_place_taken = true;
+                break;
+            }
+        }
+
+        if !is_place_taken {
+            index += 1;
+
+            let new_monster = if rand::random::<f32>() < 0.8 {
+                Unit::orc(x, y)
+            } else {
+                Unit::troll(x, y)
+            };
+
+            // room.monsters.push(new_monster);
+            monsters.push(new_monster);
+        }
+    }
+
+    monsters
+}
+
+fn generate_rooms(map: &mut Map) -> (Vec<Room>, Vec<Unit>) {
     let mut index = 0;
     let mut rooms: Vec<Room> = vec![];
+    let mut monsters: Vec<Unit> = vec![];
 
     while index < MAX_ROOMS {
         let w = rand::thread_rng().gen_range(ROOM_MIN_SIZE..ROOM_MAX_SIZE + 1);
@@ -264,7 +309,7 @@ fn generate_rooms(map: &mut Map) -> Vec<Room> {
         let x = rand::thread_rng().gen_range(1..map.get_height() - w - 1);
         let y = rand::thread_rng().gen_range(1..map.get_width() - h - 1);
 
-        let new_room = Room::new(x, x + w, y, y + h);
+        let mut new_room = Room::new(x, x + w, y, y + h);
 
         let intersects = rooms
             .iter()
@@ -282,16 +327,20 @@ fn generate_rooms(map: &mut Map) -> Vec<Room> {
             } else {
                 h_v_tunnel(&new_room.get_center(), &nearest.get_center(), map);
             }
+
+            let monsters_in_room = spawn_monsters(&mut new_room);
+
+            monsters.extend(monsters_in_room);
         }
 
-        rooms.push(new_room);
-
         new_room.fill(map);
+
+        rooms.push(new_room);
 
         index += 1;
     }
 
-    rooms
+    (rooms, monsters)
 }
 
 fn main() {
@@ -304,8 +353,6 @@ fn main() {
         .title("Roguelike game")
         .init();
 
-    let mut units: Vec<&mut Unit> = Vec::new();
-
     let mut app = App {
         root,
         offscreen: Offscreen::new(WIDTH, HEIGHT),
@@ -314,13 +361,14 @@ fn main() {
         },
     };
 
-    let rooms = generate_rooms(&mut app.game.map);
+    let (rooms, monsters) = generate_rooms(&mut app.game.map);
 
     let spawn_position = rooms[0].get_center();
+    let player = Unit::new(spawn_position.x, spawn_position.y, '@', colors::WHITE, "Player", true, true);
 
-    let mut player = Unit::new(spawn_position.x, spawn_position.y, '@', colors::WHITE);
+    let mut units = vec![player];
 
-    units.push(&mut player);
+    units.extend(monsters);
 
     app.game.map.set_fov();
 
@@ -332,7 +380,7 @@ fn main() {
 
         app.game
             .map
-            .render(&mut app.offscreen, &units[0].get_position());
+            .render(&mut app.offscreen, &units[PLAYER].get_position());
 
         blit(
             &app.offscreen,
@@ -346,7 +394,7 @@ fn main() {
 
         app.root.flush();
 
-        let exit = handle_keys(&mut app, units[0]);
+        let exit = handle_keys(&mut app, &mut units[PLAYER]);
 
         if app.root.window_closed() || exit {
             break;
