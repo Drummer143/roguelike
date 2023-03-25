@@ -10,6 +10,7 @@ use tcod::{
 };
 
 use map::Map;
+use unit::UserActions;
 
 const WIDTH: i32 = 100;
 const HEIGHT: i32 = 100;
@@ -39,64 +40,111 @@ fn restart() {
     }
 }
 
-fn handle_keys(app: &mut App) -> bool {
+fn handle_keys(app: &mut App) -> UserActions {
+    use UserActions::*;
+
     let key = app.root.wait_for_keypress(true);
 
-    match key {
-        Key {
-            code: KeyCode::Char,
-            printable: 'w',
-            ..
-        } => app.game.map.move_player(0, -1), //(0, -1),
-
-        Key {
-            code: KeyCode::Char,
-            printable: 's',
-            ..
-        } => app.game.map.move_player(0, 1),
-
-        Key {
-            code: KeyCode::Char,
-            printable: 'a',
-            ..
-        } => app.game.map.move_player(-1, 0),
-
-        Key {
-            code: KeyCode::Char,
-            printable: 'd',
-            ..
-        } => app.game.map.move_player(1, 0),
-
-        Key {
-            code: KeyCode::Enter,
-            alt: true,
-            ..
-        } => {
-            let fullscreen = app.root.is_fullscreen();
-            app.root.set_fullscreen(!fullscreen);
+    match (key, app.game.map.get_player().is_alive()) {
+        (
+            Key {
+                code: KeyCode::Char,
+                printable: 'w',
+                ..
+            },
+            _,
+        ) => {
+            if app.game.map.player_move_or_attack(0, -1) {
+                TookTurn
+            } else {
+                DidNotTakeTurn
+            }
         }
 
-        Key {
-            code: KeyCode::Escape,
-            ..
-        } => {
+        (
+            Key {
+                code: KeyCode::Char,
+                printable: 's',
+                ..
+            },
+            true,
+        ) => {
+            if app.game.map.player_move_or_attack(0, 1) {
+                TookTurn
+            } else {
+                DidNotTakeTurn
+            }
+        }
+
+        (
+            Key {
+                code: KeyCode::Char,
+                printable: 'a',
+                ..
+            },
+            true,
+        ) => {
+            if app.game.map.player_move_or_attack(-1, 0) {
+                TookTurn
+            } else {
+                DidNotTakeTurn
+            }
+        }
+
+        (
+            Key {
+                code: KeyCode::Char,
+                printable: 'd',
+                ..
+            },
+            true,
+        ) => {
+            if app.game.map.player_move_or_attack(1, 0) {
+                TookTurn
+            } else {
+                DidNotTakeTurn
+            }
+        }
+
+        (
+            Key {
+                code: KeyCode::Char,
+                printable: 'r',
+                ..
+            },
+            _,
+        ) => {
+            restart();
+
+            Exit
+        }
+
+        (
+            Key {
+                code: KeyCode::Enter,
+                alt: true,
+                ..
+            },
+            _,
+        ) => {
+            let fullscreen = app.root.is_fullscreen();
+            app.root.set_fullscreen(!fullscreen);
+
+            DidNotTakeTurn
+        }
+
+        (
+            Key {
+                code: KeyCode::Escape,
+                ..
+            },
+            _,
+        ) => {
             std::process::exit(0);
         }
 
-        Key {
-            code: KeyCode::Char,
-            printable: 'r',
-            ..
-        } => {
-            restart();
-            // main();
-            // std::process::exit(1);
-        }
-
-        _ => {}
+        _ => DidNotTakeTurn,
     }
-
-    false
 }
 
 fn main() {
@@ -137,10 +185,12 @@ fn main() {
 
         app.root.flush();
 
-        let exit = handle_keys(&mut app);
+        let user_action = handle_keys(&mut app);
 
-        if app.root.window_closed() || exit {
+        if app.root.window_closed() || user_action == UserActions::Exit {
             break;
         }
+
+        app.game.map.monsters_action(user_action);
     }
 }

@@ -7,7 +7,7 @@ use tcod::{
     BackgroundFlag, Color, Console,
 };
 
-use crate::unit::{Coordinates, Unit};
+use crate::unit::{Coordinates, Unit, UnitActions, UserActions};
 
 const FOV_ALGO: FovAlgorithm = FovAlgorithm::Basic; // default FOV algorithm
 const FOV_LIGHT_WALLS: bool = true; // light walls or not
@@ -222,35 +222,33 @@ fn find_nearest_room<'a>(rooms: &'a Vec<Room>, target_room: &'a Room) -> &'a Roo
 //     }
 // }
 
-fn spawn_monsters(room: &mut Room) -> Vec<Unit> {
+fn spawn_monsters(room: &mut Room, room_number: u32) -> Vec<Unit> {
     let mut monsters: Vec<Unit> = vec![];
 
     let count_of_monsters_in_room = rand::thread_rng().gen_range(0..MAX_ROOM_MONSTERS + 1);
     let mut index = 0;
 
+    let mut monsters_coordinates: Vec<(i32, i32)> = vec![];
+
     while index < count_of_monsters_in_room {
         let x = rand::thread_rng().gen_range(room.left_x..room.right_x);
         let y = rand::thread_rng().gen_range(room.bottom_y..room.top_y);
 
-        let mut is_place_taken = false;
-
-        for monster in room.monsters.iter() {
-            if monster.get_position().is_equal(&Coordinates { x, y }) {
-                is_place_taken = true;
-                break;
-            }
-        }
+        let is_place_taken = monsters_coordinates
+            .iter()
+            .any(|(px, py)| *px == x && *py == y);
 
         if !is_place_taken {
             index += 1;
 
             let new_monster = if rand::random::<f32>() < 0.8 {
-                Unit::orc(x, y)
+                Unit::orc(x, y, room_number)
             } else {
-                Unit::troll(x, y)
+                Unit::troll(x, y, room_number)
             };
 
-            // room.monsters.push(new_monster);
+            monsters_coordinates.push((x, y));
+
             monsters.push(new_monster);
         }
     }
@@ -288,7 +286,7 @@ fn generate_rooms(map: &mut Map) -> (Vec<Room>, Vec<Unit>) {
                 h_v_tunnel(&new_room.get_center(), &nearest.get_center(), map);
             }
 
-            let monsters_in_room = spawn_monsters(&mut new_room);
+            let monsters_in_room = spawn_monsters(&mut new_room, index as u32);
 
             monsters.extend(monsters_in_room);
         }
@@ -436,11 +434,11 @@ impl Map {
         self.height
     }
 
-    pub fn can_move_at(&self, x: i32, y: i32) -> bool {
+    pub fn possible_action(&self, x: i32, y: i32) -> (UnitActions, usize) {
         let is_map_end = x < 0 || x > self.width - 1 || y < 0 || y > self.height - 1;
 
         if is_map_end {
-            return false;
+            return (UnitActions::AFK, 0);
         }
 
         let tile = self.get_tile(x, y);
@@ -452,24 +450,56 @@ impl Map {
         };
 
         if is_tile_blocked {
-            return false;
+            return (UnitActions::AFK, 0);
         }
 
-        let is_monster_here = self.monsters.iter().any(|monster| {
+        let target_id = self.monsters.iter().position(|monster| {
             let pos = monster.get_position();
 
             monster.is_blocks_point() && x == pos.x && y == pos.y
         });
 
-        !is_monster_here
+        if let Some(target_id) = target_id {
+            (UnitActions::Attack, target_id)
+        } else {
+            (UnitActions::Move, 0)
+        }
     }
 
-    pub fn move_player(&mut self, x: i32, y: i32) {
+    pub fn player_move_or_attack(&mut self, x: i32, y: i32) -> bool {
         let next_x = self.player.get_position().x + x;
         let next_y = self.player.get_position().y + y;
 
-        if self.can_move_at(next_x, next_y) {
-            self.player.r#move(x, y);
+        match self.possible_action(next_x, next_y) {
+            (UnitActions::Move, _) => {
+                self.player.r#move(x, y);
+
+                true
+            }
+
+            (UnitActions::Attack, target_id) => {
+                println!("Player attacks {}", self.monsters[target_id].name());
+
+                true
+            }
+
+            (UnitActions::AFK, _) => {
+                println!("player afk");
+
+                false
+            }
+        }
+    }
+
+    pub fn monsters_action(&mut self, user_action: UserActions) {
+        if self.player.is_alive() && user_action != UserActions::DidNotTakeTurn {
+            for monster in &self.monsters {
+                println!(
+                    "The {} in room {} moves!",
+                    monster.name(),
+                    monster.spawn_room()
+                );
+            }
         }
     }
 }

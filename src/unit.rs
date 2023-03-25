@@ -1,5 +1,17 @@
-use crate::map::Map;
 use tcod::{colors, BackgroundFlag, Color, Console};
+
+#[derive(PartialEq)]
+pub enum UserActions {
+    TookTurn,
+    DidNotTakeTurn,
+    Exit
+}
+
+pub enum UnitActions {
+    Attack,
+    Move,
+    AFK
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Coordinates {
@@ -21,6 +33,7 @@ pub struct Unit {
     name: String,
     blocks_point: bool,
     alive: bool,
+    spawn_room: u32
 }
 
 impl Unit {
@@ -32,6 +45,7 @@ impl Unit {
         name: &str,
         blocks_point: bool,
         alive: bool,
+        spawn_room: u32
     ) -> Self {
         Unit {
             position: Coordinates { x, y },
@@ -40,6 +54,7 @@ impl Unit {
             alive,
             blocks_point,
             name: String::from(name),
+            spawn_room
         }
     }
 
@@ -67,6 +82,18 @@ impl Unit {
     pub fn is_blocks_point(&self) -> bool {
         self.blocks_point
     }
+
+    pub fn is_alive(&self) -> bool {
+        self.alive
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn spawn_room(&self) -> u32 {
+        self.spawn_room
+    }
 }
 
 impl Unit {
@@ -78,10 +105,11 @@ impl Unit {
             name: "Player".into(),
             blocks_point: true,
             alive: true,
+            spawn_room: 0
         }
     }
 
-    pub fn orc(x: i32, y: i32) -> Self {
+    pub fn orc(x: i32, y: i32, spawn_room: u32) -> Self {
         Self {
             position: Coordinates { x, y },
             char: 'o',
@@ -89,10 +117,11 @@ impl Unit {
             alive: true,
             blocks_point: true,
             name: "Orc".into(),
+            spawn_room
         }
     }
 
-    pub fn troll(x: i32, y: i32) -> Self {
+    pub fn troll(x: i32, y: i32, spawn_room: u32) -> Self {
         Self {
             position: Coordinates { x, y },
             char: 'T',
@@ -100,6 +129,7 @@ impl Unit {
             alive: true,
             blocks_point: true,
             name: "Troll".into(),
+            spawn_room
         }
     }
 }
