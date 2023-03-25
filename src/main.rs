@@ -52,7 +52,7 @@ fn handle_keys(app: &mut App) -> UserActions {
                 printable: 'w',
                 ..
             },
-            _,
+            true,
         ) => {
             if app.game.map.player_move_or_attack(0, -1) {
                 TookTurn

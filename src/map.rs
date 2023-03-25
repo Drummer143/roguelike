@@ -308,6 +308,7 @@ pub struct Map {
     height: i32,
     fov: FovMap,
     prev_player_pos: Coordinates,
+    prev_player_move: Coordinates,
     rooms: Vec<Room>,
     monsters: Vec<Unit>,
     player: Unit,
@@ -323,6 +324,7 @@ impl Map {
             height,
             fov: FovMap::new(width, height),
             prev_player_pos: Coordinates { x: 0, y: 0 },
+            prev_player_move: Coordinates { x: 0, y: 0 },
             rooms: vec![],
             monsters: vec![],
             player: Unit::player(0, 0),
@@ -412,7 +414,11 @@ impl Map {
         }
 
         for monster in &self.monsters {
-            monster.draw(offscreen);
+            let pos = monster.get_position();
+
+            if self.fov.is_in_fov(pos.x, pos.y) {
+                monster.draw(offscreen);
+            }
         }
 
         self.player.draw(offscreen);
@@ -473,12 +479,14 @@ impl Map {
         match self.possible_action(next_x, next_y) {
             (UnitActions::Move, _) => {
                 self.player.r#move(x, y);
+                self.prev_player_move.x = x;
+                self.prev_player_move.y = y;
 
                 true
             }
 
             (UnitActions::Attack, target_id) => {
-                println!("Player attacks {}", self.monsters[target_id].name());
+                self.player.attack(&mut self.monsters[target_id]);
 
                 true
             }
@@ -493,12 +501,28 @@ impl Map {
 
     pub fn monsters_action(&mut self, user_action: UserActions) {
         if self.player.is_alive() && user_action != UserActions::DidNotTakeTurn {
-            for monster in &self.monsters {
-                println!(
-                    "The {} in room {} moves!",
-                    monster.name(),
-                    monster.spawn_room()
-                );
+            for i in 0..self.monsters.len() {
+                let monster_pos = self.monsters[i].get_position();
+
+                if !self.fov.is_in_fov(monster_pos.x, monster_pos.y) {
+                    continue;
+                }
+
+                let player_pos = self.player.get_position();
+                let (distance_to_player, dx, dy) = self.monsters[i].monster_step(player_pos);
+
+                if distance_to_player >= 2.0 {
+                    let next_x = monster_pos.x + dx;
+                    let next_y = monster_pos.y + dy;
+
+                    let (possible_monster_action, _) = self.possible_action(next_x, next_y);
+
+                    if possible_monster_action == UnitActions::Move {
+                        self.monsters[i].r#move(dx, dy);
+                    }
+                } else {
+                    self.monsters[i].attack(&mut self.player);
+                }
             }
         }
     }
