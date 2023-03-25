@@ -176,6 +176,14 @@ impl Unit {
     pub fn defense(&self) -> i32 {
         self.stats.defense
     }
+
+    pub fn max_hp(&self) -> i32 {
+        self.stats.max_hp
+    }
+
+    pub fn current_hp(&self) -> i32 {
+        self.stats.current_hp
+    }
 }
 
 impl Unit {

@@ -6,7 +6,7 @@ use tcod::{
     colors,
     console::{blit, Offscreen, Root},
     input::{Key, KeyCode},
-    Console, FontLayout, FontType,
+    BackgroundFlag, Console, FontLayout, FontType, TextAlignment,
 };
 
 use map::Map;
@@ -172,6 +172,19 @@ fn main() {
         app.offscreen.clear();
 
         app.game.map.render(&mut app.offscreen);
+
+        app.offscreen.set_default_foreground(colors::WHITE);
+        app.offscreen.print_ex(
+            1,
+            HEIGHT - 2,
+            BackgroundFlag::None,
+            TextAlignment::Left,
+            format!(
+                "HP: {}/{}",
+                app.game.map.get_player().current_hp(),
+                app.game.map.get_player().max_hp()
+            ),
+        );
 
         blit(
             &app.offscreen,

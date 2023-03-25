@@ -491,17 +491,17 @@ impl Map {
                 true
             }
 
-            (UnitActions::AFK, _) => {
-                println!("player afk");
-
-                false
-            }
+            (UnitActions::AFK, _) => false,
         }
     }
 
     pub fn monsters_action(&mut self, user_action: UserActions) {
         if self.player.is_alive() && user_action != UserActions::DidNotTakeTurn {
             for i in 0..self.monsters.len() {
+                if !self.monsters[i].is_alive() {
+                    continue;
+                }
+
                 let monster_pos = self.monsters[i].get_position();
 
                 if !self.fov.is_in_fov(monster_pos.x, monster_pos.y) {
