@@ -20,41 +20,33 @@ pub struct Unit {
     color: Color,
     name: String,
     blocks_point: bool,
-    alive: bool
+    alive: bool,
 }
 
 impl Unit {
-    pub fn new(x: i32, y: i32, char: char, color: Color, name: &str, blocks_point: bool, alive: bool) -> Self {
+    pub fn new(
+        x: i32,
+        y: i32,
+        char: char,
+        color: Color,
+        name: &str,
+        blocks_point: bool,
+        alive: bool,
+    ) -> Self {
         Unit {
             position: Coordinates { x, y },
             char,
             color,
             alive,
             blocks_point,
-            name: String::from(name)
+            name: String::from(name),
         }
     }
 
     /// move by the given amount
-    pub fn r#move(&mut self, x: i32, y: i32, map: &Map) {
-        let next_x = self.position.x + x;
-        let next_y = self.position.y + y;
-
-        let is_map_end = next_x < 0
-            || next_x > map.get_width() - 1
-            || next_y < 0
-            || next_y > map.get_height() - 1;
-
-        if is_map_end {
-            return;
-        }
-
-        let tile = map.get_tile(next_x, next_y);
-
-        if tile.is_ok() && !tile.unwrap().is_blocked() {
+    pub fn r#move(&mut self, x: i32, y: i32) {
             self.position.x += x;
             self.position.y += y;
-        }
     }
 
     /// set the color and then draw the character that represents this object at its position
@@ -71,9 +63,24 @@ impl Unit {
     pub fn get_position(&self) -> &Coordinates {
         &self.position
     }
+
+    pub fn is_blocks_point(&self) -> bool {
+        self.blocks_point
+    }
 }
 
 impl Unit {
+    pub fn player(x: i32, y: i32) -> Self {
+        Self {
+            position: Coordinates { x, y },
+            char: '@',
+            color: colors::WHITE,
+            name: "Player".into(),
+            blocks_point: true,
+            alive: true,
+        }
+    }
+
     pub fn orc(x: i32, y: i32) -> Self {
         Self {
             position: Coordinates { x, y },
@@ -81,7 +88,7 @@ impl Unit {
             color: colors::DESATURATED_GREEN,
             alive: true,
             blocks_point: true,
-            name: "Orc".into()
+            name: "Orc".into(),
         }
     }
 
@@ -92,7 +99,7 @@ impl Unit {
             color: colors::DARK_GREEN,
             alive: true,
             blocks_point: true,
-            name: "Troll".into()
+            name: "Troll".into(),
         }
     }
 }
