@@ -264,8 +264,8 @@ fn generate_rooms(map: &mut Map) -> (Vec<Room>, Vec<Unit>) {
     while index < MAX_ROOMS {
         let w = rand::thread_rng().gen_range(ROOM_MIN_SIZE..ROOM_MAX_SIZE + 1);
         let h = rand::thread_rng().gen_range(ROOM_MIN_SIZE..ROOM_MAX_SIZE + 1);
-        let x = rand::thread_rng().gen_range(1..map.get_height() - w - 1);
-        let y = rand::thread_rng().gen_range(1..map.get_width() - h - 1);
+        let y = rand::thread_rng().gen_range(1..map.get_height() - h - 1);
+        let x = rand::thread_rng().gen_range(1..map.get_width() - w - 1);
 
         let mut new_room = Room::new(x, x + w, y, y + h);
 
@@ -316,7 +316,7 @@ pub struct Map {
 
 impl Map {
     pub fn new(width: i32, height: i32) -> Self {
-        let tiles = vec![vec![Tile::wall(); width as usize]; height as usize];
+        let tiles = vec![vec![Tile::wall(); height as usize]; width as usize];
 
         let mut map = Self {
             tiles,
@@ -345,7 +345,7 @@ impl Map {
     }
 
     pub fn set_tile(&mut self, x: i32, y: i32, tile: Tile) -> bool {
-        if x > self.width || x < 0 || y > self.height || y < 0 {
+        if x >= self.width || x < 0 || y >= self.height || y < 0 {
             return false;
         }
 
@@ -364,7 +364,7 @@ impl Map {
 
     pub fn set_fov(&mut self) {
         for y in 0..self.height {
-            for x in 0..self.height {
+            for x in 0..self.width {
                 let tile = self.tiles[x as usize][y as usize];
 
                 self.fov
@@ -389,8 +389,9 @@ impl Map {
             );
         }
 
-        for y in 0..self.height {
-            for x in 0..self.width {
+        dbg!();
+        for x in 0..self.width {
+            for y in 0..self.height {
                 let visible = self.fov.is_in_fov(x, y);
                 let tile = &mut self.tiles[x as usize][y as usize];
 
@@ -413,6 +414,7 @@ impl Map {
             }
         }
 
+        dbg!();
         for monster in &self.monsters {
             let pos = monster.get_position();
 
@@ -497,6 +499,7 @@ impl Map {
 
     pub fn monsters_action(&mut self, user_action: UserActions) {
         if self.player.is_alive() && user_action != UserActions::DidNotTakeTurn {
+            dbg!();
             for i in 0..self.monsters.len() {
                 if !self.monsters[i].is_alive() {
                     continue;

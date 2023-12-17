@@ -1,7 +1,9 @@
 mod map;
 mod unit;
+mod gui;
 
 use std::process::Command;
+use gui::GUI;
 use tcod::{
     colors,
     console::{blit, Offscreen, Root},
@@ -12,8 +14,11 @@ use tcod::{
 use map::Map;
 use unit::UserActions;
 
-const WIDTH: i32 = 100;
-const HEIGHT: i32 = 100;
+const WINDOW_WIDTH: i32 = 100;
+const WINDOW_HEIGHT: i32 = 100;
+
+const GUI_HEIGHT: i32 = 30;
+const MAP_HEIGHT: i32 = WINDOW_HEIGHT - GUI_HEIGHT;
 
 const FPS: i32 = 60;
 
@@ -24,6 +29,7 @@ pub struct Game {
 struct App {
     root: Root,
     offscreen: Offscreen,
+    gui: GUI,
     game: Game,
 }
 
@@ -153,16 +159,17 @@ fn main() {
     let root = Root::initializer()
         .font("arial10x10.png", FontLayout::Tcod)
         .font_type(FontType::Greyscale)
-        .size(WIDTH, HEIGHT)
+        .size(WINDOW_WIDTH, WINDOW_HEIGHT)
         .title("Roguelike game")
         .init();
 
     let mut app = App {
         root,
-        offscreen: Offscreen::new(WIDTH, HEIGHT),
+        offscreen: Offscreen::new(WINDOW_WIDTH, MAP_HEIGHT),
         game: Game {
-            map: Map::new(WIDTH, HEIGHT),
+            map: Map::new(WINDOW_WIDTH, MAP_HEIGHT),
         },
+        gui: GUI::new(WINDOW_WIDTH, GUI_HEIGHT)
     };
 
     app.game.map.set_fov();
@@ -173,10 +180,11 @@ fn main() {
 
         app.game.map.render(&mut app.offscreen);
 
-        app.offscreen.set_default_foreground(colors::WHITE);
-        app.offscreen.print_ex(
+        app.root.set_default_foreground(colors::WHITE);
+        app.root.set_default_background(colors::GREEN);
+        app.root.print_ex(
             1,
-            HEIGHT - 2,
+            GUI_HEIGHT - 2,
             BackgroundFlag::None,
             TextAlignment::Left,
             format!(
@@ -189,7 +197,7 @@ fn main() {
         blit(
             &app.offscreen,
             (0, 0),
-            (WIDTH, HEIGHT),
+            (WINDOW_WIDTH, MAP_HEIGHT),
             &mut app.root,
             (0, 0),
             1.0,
